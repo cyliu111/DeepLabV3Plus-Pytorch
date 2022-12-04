@@ -561,3 +561,55 @@ class Compose(object):
             format_string += '    {0}'.format(t)
         format_string += '\n)'
         return format_string
+    
+class add_noise_to_lbl(object):
+    """add noise to label.
+    """
+
+    def __init__(self, num_classes, scale=2, keep_prop=0.8):
+        self.num_classes = num_classes
+        self.scale = scale
+    
+    @staticmethod
+    def np_onehot(label, num_classes):
+        return np.eye(num_classes)[label]
+
+    def __call__(self, label):
+        shape = label.shape
+        label = label.reshape(shape[0], shape[1])
+
+        onehot = np_onehot(label, self.num_classes)
+        lower_shape = (shape[0] // self.scale, shape[1] // self.scale)
+
+        label_down = skimage.transform.resize(
+            onehot, (lower_shape[0], lower_shape[1], self.num_classes),
+            order=1, preserve_range=True, mode='constant')
+
+        onehot = skimage.transform.resize(label_down,
+                                          (shape[0], shape[1], self.num_classes),
+                                          order=1, preserve_range=True,
+                                          mode='constant')
+        np.random.seed()
+        noise = np.random.randint(0, self.num_classes, lower_shape)
+
+        noise = np_onehot(noise, self.num_classes)
+
+        noise_up = skimage.transform.resize(noise,
+                                            (shape[0], shape[1], self.num_classes),
+                                            order=1, preserve_range=True,
+                                            mode='constant')
+        #the random mask is fixed
+        np.random.seed(0)
+        mask = np.floor(keep_prop + np.random.rand(*lower_shape))
+        mask_up = skimage.transform.resize(mask, (shape[0], shape[1], 1),
+                                           order=1, preserve_range=True,
+                                           mode='constant')
+
+        noised_label = mask_up * onehot + (1 - mask_up) * noise_up
+
+        return np.argmax(noised_label, axis=2)
+
+    def __repr__(self):
+        interpolate_str = _pil_interpolation_to_str[self.interpolation]
+        return self.__class__.__name__ + '(size={0}, interpolation={1})'.format(self.size, interpolate_str) 
+    
