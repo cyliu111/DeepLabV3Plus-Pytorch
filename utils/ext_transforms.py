@@ -6,7 +6,7 @@ import random
 import numbers
 import numpy as np
 from PIL import Image
-
+import skimage
 
 #
 #  Extended Transforms for Semantic Segmentation
@@ -574,7 +574,8 @@ class add_noise_to_lbl(object):
     def np_onehot(label, num_classes):
         return np.eye(num_classes)[label]
 
-    def __call__(self, label):
+    def __call__(self, lbl):
+        label = np.array(lbl)
         shape = label.shape
         label = label.reshape(shape[0], shape[1])
 
@@ -607,9 +608,5 @@ class add_noise_to_lbl(object):
 
         noised_label = mask_up * onehot + (1 - mask_up) * noise_up
 
-        return np.argmax(noised_label, axis=2)
+        return Image.fromarray(np.argmax(noised_label, axis=2))
 
-    def __repr__(self):
-        interpolate_str = _pil_interpolation_to_str[self.interpolation]
-        return self.__class__.__name__ + '(size={0}, interpolation={1})'.format(self.size, interpolate_str) 
-    
